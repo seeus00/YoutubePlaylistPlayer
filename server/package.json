@@ -1,0 +1,16 @@
+{
+  "name": "youtubeplaylistplayer",
+  "version": "1.0.0",
+  "description": "Recreates the youtube playlist page to be faster and more like a music player",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "express": "^4.18.1",
+    "ytdl-core": "^4.11.2"
+  }
+}
