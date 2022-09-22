@@ -1,26 +1,30 @@
 import React, { Component, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {useLocation} from 'react-router-dom';
 import '../css/playlist.css';
+import 'bootstrap/dist/css/bootstrap.css';
+import {Container, Row, Col} from 'react-bootstrap';
+import InfiniteScroll from 'react-infinite-scroller';
 
 export default function Playlist() {
     const [videos, setVideos] = useState([])
     const [error, setError] = useState({})
     const [currVideo, setCurrVideo] = useState(null)
     const [currAudioSrc, setCurrAudioSrc] = useState()
+    const [currAudioTime, setCurrAudioTime] = useState(0)
+    const [currAudioDuration, setCurrAudioDuration] = useState(0)
     const [currVideoIndex, setCurrVideoIndex] = useState(0)
-
+    const [currVolumeLevel, setCurrVolumeLevel] = useState(0.2)
+    
     let audioSource = useRef()
 
     const location = useLocation();
     const playlistUrl = location.state.playlist;
-    const params = new Proxy(new URLSearchParams(playlistUrl), {
-        get: (searchParams, prop) => searchParams.get(prop),
-    });
-
+    const url = new URL(playlistUrl)
+    const playlistId = url.searchParams.get("list")
 
     useEffect(() => {
         const fetchVideos = () => {
-            fetch('/playlist?id=' + params.list)
+            fetch('/playlist?id=' + playlistId)
                 .then(resp => {
                     if (!resp.ok) {
                         throw new Error("PLAYLIST ERROR")
@@ -66,10 +70,17 @@ export default function Playlist() {
     }, [currVideo]) 
 
     const updateProgress = () => {
+        if (audioSource.current.currentTime === audioSource.current.duration) {
+            setCurrVideoIndex(currVideoIndex + 1)
+        }
+
         const container = document.getElementById("elapsed-container");
         const elapsed = document.getElementById("elapsed");
 
         if (container === null || elapsed === null) return
+        
+        setCurrAudioTime(audioSource.current.currentTime)
+        setCurrAudioDuration(audioSource.current.duration)
 
         var rect = container.getBoundingClientRect();
         var percentage = audioSource.current.currentTime / audioSource.current.duration;
@@ -81,14 +92,25 @@ export default function Playlist() {
     //Init audio source
     useEffect(() => {
         audioSource.current = new Audio(currAudioSrc)
-        audioSource.current.volume = 0.2
+        audioSource.current.volume = currVolumeLevel
         audioSource.current.play()
+        setCurrAudioTime(audioSource.current.currentTime)
+        setCurrAudioDuration(audioSource.current.duration)
+
         window.requestAnimationFrame(updateProgress)
     }, [currAudioSrc])
 
     //Play next or prev song
     useEffect(() => {
         if (videos.length !== 0) {
+            // if (currVideoIndex < 0) {
+            //     setCurrVideoIndex(0)
+            // }else if (currVideoIndex >= videos.length) {
+            //     setCurrVideoIndex(videos.length - 1)
+            // }
+
+            console.log(currVideoIndex)
+
             audioSource.current.pause()
             audioSource.current.src = ""
             setCurrAudioSrc(undefined)
@@ -97,11 +119,16 @@ export default function Playlist() {
     }, [currVideoIndex])
 
     useEffect(() => {
+
+    }, [currAudioTime])
+
+    useEffect(() => {
         return () => {
             audioSource.current.pause()
             console.log("in cleanup")
         }
     }, [])
+
     const handleProgressClick = (e) => {
         const container = document.getElementById("elapsed-container");
         const rect = container.getBoundingClientRect();
@@ -123,6 +150,8 @@ export default function Playlist() {
     const handleVolumeSlider = () => {
         const slider = document.getElementById("volumeSlider")
         audioSource.current.volume = slider.value / 100.0
+
+        setCurrVolumeLevel(audioSource.current.volume)
     }
 
     const handleVolumeWheel = (e) => {
@@ -146,28 +175,98 @@ export default function Playlist() {
         )
     }
 
+    const handlePlay = () => {
+        const playButton = document.getElementById("playButton")
+        if (playButton === null) return
+
+        if (audioSource.current.paused) {
+            audioSource.current.play()
+        }else {
+            audioSource.current.pause()
+        }
+
+        playButton.innerHTML = (audioSource.current.paused) ? "▶️" : "⏸️"
+    }
+
+    const convertTime = (time) => {
+        var sec_num = parseInt(time, 10); // don't forget the second param
+        var hours   = Math.floor(sec_num / 3600);
+        var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+        var seconds = sec_num - (hours * 3600) - (minutes * 60);
+    
+        if (hours   < 10) {hours   = "0"+hours;}
+        if (minutes < 10) {minutes = "0"+minutes;}
+        if (seconds < 10) {seconds = "0"+seconds;}
+        return hours+':'+minutes+':'+seconds;
+    }
+
+    const handleVideoClick = (video) => {
+        setCurrVideoIndex(videos.indexOf(video))
+    }
+
+    const formatVideos = () => {
+        if (videos.length == 0) return (<div></div>)
+
+        return videos.map(video => 
+            <div key={video.id}>
+                <Row className="videoEntry">
+                    <Col>
+                        <div className="videoInPlaylist"
+                            onClick={() => handleVideoClick(video)}>
+                                <p>
+                                    {video.title}
+                                </p>
+
+                            </div>
+                    </Col>
+                    <Col>
+                        <img src={videos[videos.indexOf(video)].thumbnails.default.url}></img>
+                    </Col>
+                </Row>
+            </div>)
+    }
+
     return (
-        currAudioSrc !== undefined ? 
-        (<div>
-            <button type="button" id="playButton" onClick={() => audioSource.current.play() }>▶️</button>
-            <button type="button" id="pauseButton" onClick={() => audioSource.current.pause()}>⏸️</button>
+        (<Container fluid={true}>
+            <Row id="utilityControl">
+                <Col>
+                    <button type="button" id="prevTrackButton" onClick={() => setCurrVideoIndex((currVideoIndex - 1 < 0 ? 0 : currVideoIndex - 1))}>⏮️</button>
+                    <button type="button" id="playButton" onClick={() => handlePlay() }>{(audioSource.current !== undefined && audioSource.current.paused) ? "▶️" : "⏸️"}</button>
+                    {/* <button type="button" id="playButton" onClick={() => handlePlay() }>⏸️</button> */}
+                    <button type="button" id="nextTrackButton" onClick={() => setCurrVideoIndex((currVideoIndex + 1 >= videos.length ? videos.length - 1 : currVideoIndex + 1))}>⏭️</button>
+                </Col>
+                
+                <Col>
+                    <p >{convertTime(currAudioTime)}</p>
+                </Col>
 
-            <div id="elapsed-container" onClick={handleProgressClick}>
-                <div id="elapsed" onDragStart={handleProgressDragStart}></div>
-            </div>
+                <Col xs={4}>
+                    <div id="elapsed-container" onClick={handleProgressClick}>
+                        <div id="elapsed" onDragStart={handleProgressDragStart}></div>
+                    </div>
+                </Col>
 
-            <div class="volumeContainer">
-                <input type="range" min="1" max="100" defaultValue="20"
-                    onChange={handleVolumeSlider} 
-                    onWheel={handleVolumeWheel} 
-                    id="volumeSlider"/>
-            </div>
-
-            <button type="button" id="nextTrackButton" onClick={() => setCurrVideoIndex(currVideoIndex + 1)}>⏭️</button>
-            <button type="button" id="prevTrackButton" onClick={() => setCurrVideoIndex(currVideoIndex - 1)}>⏮️</button>
+                <Col>
+                    <p>{convertTime(currAudioDuration)}</p>
+                </Col>
+                
+                <Col>
+                    <div className="volumeContainer">
+                        <input type="range" min="0" max="100" defaultValue={currVolumeLevel * 100}
+                            onChange={handleVolumeSlider} 
+                            onWheel={handleVolumeWheel} 
+                            id="volumeSlider"/>
+                    </div>
+                </Col>
+                <Row>
+                    <p>{currVideo === null ? "" : currVideo.title}</p>
+                </Row>
+            </Row>
             
-            <p>Now playing: {currVideo.title}</p>
-        </div>) : 
-        (<p>LOADING!</p>)
+            <Row>
+                {formatVideos()}
+            </Row>
+            
+        </Container>)
     )
 }

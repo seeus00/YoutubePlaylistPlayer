@@ -1,9 +1,11 @@
 #elapsed-container{
-    width: 100%;
+    width: 30%;
     height: 10px;
+    margin-top: 8px;
     border-radius: 3px;
-    background: grey;
-  }
+    background: white;
+    position: absolute;
+}
 
 #elapsed{
     width: 0;
@@ -14,3 +16,38 @@
 #volumeContainer {
     width: 30px;
 }
+
+#utilityControl {
+    width: 100%;
+    position: fixed;
+    bottom: 0;
+    pointer-events: auto; 
+    background-color: gray;
+}
+
+#titleText {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+.videoInPlaylist {
+    cursor: pointer; 
+}
+
+.videoEntry {
+    border-style: solid;
+    margin-bottom: 5px;
+}
+
+.videoInPlaylist:hover {
+    background-color: red;
+}
+
+
+
+button {
+    outline: none;
+}
+
