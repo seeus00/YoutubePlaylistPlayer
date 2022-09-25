@@ -14,7 +14,7 @@ export default function Home(props) {
     }
 
     return (
-        <div class="container">
+        <div className="container">
             <h1>Enter a playlist!</h1>
             <form onSubmit={handleSubmit} id="urlForm">
                 <label>Enter playlist: </label>

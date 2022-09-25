@@ -15,14 +15,21 @@
 
 #volumeContainer {
     width: 30px;
+    overscroll-behavior: contain;
 }
 
 #utilityControl {
-    width: 100%;
-    position: fixed;
+    border: solid;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    position: -webkit-sticky; /* Safari */
+    position: sticky;
+    top: 0;
     bottom: 0;
     pointer-events: auto; 
     background-color: gray;
+
+    overflow-y:hidden;
 }
 
 #titleText {
@@ -32,13 +39,17 @@
     text-align: center;
 }
 
+#coverArt {
+    width: 50%;
+}
+
 .videoInPlaylist {
     cursor: pointer; 
 }
 
 .videoEntry {
     border-style: solid;
-    margin-bottom: 5px;
+    margin: 5px;
 }
 
 .videoInPlaylist:hover {
