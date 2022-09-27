@@ -3,6 +3,8 @@ import {useLocation} from 'react-router-dom';
 import '../css/playlist.css';
 import 'bootstrap/dist/css/bootstrap.css';
 import {Container, Row, Col} from 'react-bootstrap';
+import {MusicAnalyzer} from '../components/musicAnalyzer.component'
+
 
 export default function Playlist() {
     const [currPlaylistUrl, setCurrPlaylistUrl] = useState()
@@ -155,6 +157,7 @@ export default function Playlist() {
         const startNewAudio = async () => {
             await audioSource.current.pause()
             audioSource.current = new Audio()
+            // audioSource.current.crossOrigin = "anonymous"
             audioSource.current.src = currAudioSrc
             audioSource.current.volume = currVolumeLevel
     
@@ -278,6 +281,17 @@ export default function Playlist() {
         
     }, [currPage])
 
+    const animate = () => {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+        let audioSourceWindow = null
+        let analyser = null
+
+        audioSourceWindow = audioCtx.createMediaElementSource(audioSource.current)
+        analyser = audioCtx.createAnalyser()
+        audioSourceWindow.connect(analyser)
+        analyser.connect(audioCtx.destination)
+    }
+    
     return (
         (<Container fluid={true}>
             <Row id="utilityControl">
@@ -330,6 +344,11 @@ export default function Playlist() {
             </Row>
             
             <Row>
+                <Col>
+                <canvas id="visualizerCanvas">{animate()}</canvas>
+
+                    {/* <MusicAnalyzer audioSource={audioSource}/> */}
+                </Col>
                 <Col>
                     {formatVideos()}
                 </Col>

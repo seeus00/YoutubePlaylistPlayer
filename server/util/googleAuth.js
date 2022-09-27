@@ -1,7 +1,10 @@
 //For google api
-var fs = require('fs');
-var readline = require('readline');
-var {google} = require('googleapis');
+const fs = require('fs');
+const open = require('open');
+const http = require('http');
+const destroyer = require('server-destroy');
+
+const {google} = require('googleapis');
 var OAuth2 = google.auth.OAuth2;
 
 
@@ -47,27 +50,52 @@ function authorize(credentials, callback) {
 function getNewToken(oauth2Client, callback) {
     var authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
-        scope: SCOPES
+        scope: "https://www.googleapis.com/auth/userinfo.profile"
     });
-    console.log('Authorize this app by visiting this url: ', authUrl);
-    var rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
+    // console.log('Authorize this app by visiting this url: ', authUrl);
+    // var rl = readline.createInterface({
+    //     input: process.stdin,
+    //     output: process.stdout
+    // });
 
-    rl.question('Enter the code from that page here: ', function(code) {
-    rl.close();
-    oauth2Client.getToken(code, function(err, token) {
-        console.log(token)
-            if (err) {
-                console.log('Error while trying to retrieve access token', err);
-                return;
-            }
-            oauth2Client.credentials = token;
-            storeToken(token);
-            callback(oauth2Client);
-        });
-    });
+
+    const server = http.createServer(async (req, res) => {
+        const qs = new URL(req.url, 'http://localhost:5001').searchParams;
+        const code = qs.get('code');
+        res.end('Authentication successful! Please return to the console.');
+        
+        server.destroy();
+
+
+        // Now that we have the code, use that to acquire tokens.
+        const r = await oauth2Client.getToken(code);
+        
+        // // Make sure to set the credentials on the OAuth2 client.
+        oauth2Client.setCredentials(r.tokens);
+        storeToken(r.tokens)
+        callback(oauth2Client)
+  
+    }).listen(5001, () => {
+        open(authUrl, {wait: false}).then(cp => cp.unref());
+    })
+
+    destroyer(server)
+
+
+
+    // rl.question('Enter the code from that page here: ', function(code) {
+    // rl.close();
+    // oauth2Client.getToken(code, function(err, token) {
+    //     console.log(token)
+    //         if (err) {
+    //             console.log('Error while trying to retrieve access token', err);
+    //             return;
+    //         }
+    //         oauth2Client.credentials = token;
+    //         storeToken(token);
+    //         callback(oauth2Client);
+    //     });
+    // });
 }
   
   /**
