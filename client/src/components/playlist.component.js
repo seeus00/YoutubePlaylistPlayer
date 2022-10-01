@@ -3,7 +3,8 @@ import {useLocation} from 'react-router-dom';
 import '../css/playlist.css';
 import 'bootstrap/dist/css/bootstrap.css';
 import {Container, Row, Col} from 'react-bootstrap';
-import {MusicAnalyzer} from '../components/musicAnalyzer.component'
+import {List, Paper} from '@mui/material'
+//import {MusicAnalyzer} from '../components/musicAnalyzer.component'
 
 
 export default function Playlist() {
@@ -23,6 +24,11 @@ export default function Playlist() {
     const [currAudioDuration, setCurrAudioDuration] = useState(0)
     const [currVolumeLevel, setCurrVolumeLevel] = useState(0.2)
     
+    const [audioEle, setAudioEle] = useState(null)
+    const [audioAnalyser, setAudioAnalyser] = useState(null)
+
+    const colors = useRef([])
+    const audioCtx = useRef(new (window.AudioContext || window.webkitAudioContext)())
     const audioSource = useRef(new Audio())
     const location = useLocation();
 
@@ -37,7 +43,7 @@ export default function Playlist() {
         const url = new URL(currPlaylistUrl)
         const playlistId = url.searchParams.get("list")
 
-        await fetch(`/authPlaylist?id=${playlistId}${tokenParam}`)
+        await fetch(`/playlist?id=${playlistId}${tokenParam}`)
             .then(resp => {
                 if (!resp.ok) {
                     setError({msg: "PLAYLIST ERROR"})
@@ -75,17 +81,40 @@ export default function Playlist() {
         }
     }, [videos])  
 
+    // useEffect(() => {
+    //     const fetchVideo = async () => {
+    //         const resp = await fetch('/video?id=' + currVideo.id).catch((e) => setError(e))
+    //         if (resp.ok) {
+    //             const data = await resp.json()
+    //             setCurrAudioSrc(data.url)
+    //             console.log(data.url)
+    //         }else {
+    //             //If video is invalid, remove it from the playlist
+    //             setVideos(videos.filter(video => video.id !== currVideo.id))
+    //         }
+    //     }
+
+    //     if (currVideo) {
+    //         fetchVideo()
+    //         // const video = videos[videos.indexOf(currVideo)]
+
+    //         // const thumbnail = video.thumbnails.standard.url
+    //         // document.getElementById('utilityControl').style.backgroundImage=`url(${thumbnail})`;
+    //     }
+    // }, [currVideo]) 
+
     useEffect(() => {
         const fetchVideo = async () => {
-            const resp = await fetch('/video?id=' + currVideo.id).catch((e) => setError(e))
-            if (resp.ok) {
-                const data = await resp.json()
-                setCurrAudioSrc(data.url)
-                console.log(data.url)
-            }else {
-                //If video is invalid, remove it from the playlist
-                setVideos(videos.filter(video => video.id !== currVideo.id))
-            }
+            setCurrAudioSrc('http://localhost:3000/videoStream?id=' + currVideo.id)
+            // const resp = await fetch('/streamVideo?id=' + currVideo.id).catch((e) => setError(e))
+            // if (resp.ok) {
+            //     const data = await resp.json()
+            //     setCurrAudioSrc(data.url)
+            //     console.log(data.url)
+            // }else {
+            //     //If video is invalid, remove it from the playlist
+            //     setVideos(videos.filter(video => video.id !== currVideo.id))
+            // }
         }
 
         if (currVideo) {
@@ -148,26 +177,31 @@ export default function Playlist() {
 
     //Init audio source
     useEffect(() => {
-        // playAudio(currAudioSrc).then(() => {
-        //     setCurrAudioTime(audioSource.current.currentTime)
-        //     setCurrAudioDuration(audioSource.current.duration)
-
-        //     window.requestAnimationFrame(updateProgress)
-        // })
         const startNewAudio = async () => {
             await audioSource.current.pause()
             audioSource.current = new Audio()
-            // audioSource.current.crossOrigin = "anonymous"
             audioSource.current.src = currAudioSrc
             audioSource.current.volume = currVolumeLevel
-    
+
+            audioSource.current.preload = "all"
+
+            let audioEleSrc = audioCtx.current.createMediaElementSource(audioSource.current)
+            let analyser = audioCtx.current.createAnalyser()
+            audioEleSrc.connect(analyser);
+            analyser.connect(audioCtx.current.destination);
+
+            setAudioEle(audioEleSrc)
+            setAudioAnalyser(analyser)
+
             await audioSource.current.play()
+
+            
             setCurrAudioTime(audioSource.current.currentTime)
             setCurrAudioDuration(audioSource.current.duration)
     
-            window.requestAnimationFrame(updateProgress)
+            //window.requestAnimationFrame(updateProgress)
+        
         }
-
         if (currAudioSrc !== undefined) {
             startNewAudio()
         }
@@ -281,17 +315,92 @@ export default function Playlist() {
         
     }, [currPage])
 
-    const animate = () => {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-        let audioSourceWindow = null
-        let analyser = null
+    const setCanvasScalingFactor = () => {
+        return window.devicePixelRatio || 1;
+     }
+     
+    const resizeCanvas = () => {
+        let aWrapper = document.getElementById("visualizerContainer")
+        let canvas = document.getElementById("visualizerCanvas")
+        var ctx = canvas.getContext("2d");
 
-        audioSourceWindow = audioCtx.createMediaElementSource(audioSource.current)
-        analyser = audioCtx.createAnalyser()
-        audioSourceWindow.connect(analyser)
-        analyser.connect(audioCtx.destination)
-    }
+         //Gets the devicePixelRatio
+         var pixelRatio = setCanvasScalingFactor();
+     
+         //The viewport is in portrait mode, so var width should be based off viewport WIDTH
+         if (window.innerHeight > window.innerWidth) {
+             //Makes the canvas 100% of the viewport width
+             var width = Math.round(1.0 * window.innerWidth);
+         }
+       //The viewport is in landscape mode, so var width should be based off viewport HEIGHT
+         else {
+             //Makes the canvas 100% of the viewport height
+             var width = Math.round(1.0 * window.innerHeight);
+         }
+     
+         //This is done in order to maintain the 1:1 aspect ratio, adjust as needed
+         var height = width;
+     
+         //This will be used to downscale the canvas element when devicePixelRatio > 1
+         aWrapper.style.width = width + "px";
+         aWrapper.style.height = height + "px";
+     
+         canvas.width = width * pixelRatio;
+         canvas.height = height * pixelRatio;
+     }
+
+    const animate = () => {          
+        let canvas = document.getElementById("visualizerCanvas")
+        let canvasCtx = canvas.getContext("2d");
+
+        canvasCtx.sRect = (x,y,w,h) => {
+            x=parseInt(x)+0.50;
+            y=parseInt(y)+0.50;
+            canvasCtx.strokeRect(x,y,w,h);
+        }
+
+        canvasCtx.fRect= (x,y,w,h) => {
+            x=parseInt(x);
+            y=parseInt(y);
+            canvasCtx.fillRect(x,y,w,h);
+        }
+
+        const bufferLength = audioAnalyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        const barWidth = parseInt(canvas.width / bufferLength);
+
+        audioAnalyser.fftSize = 128;
+        let x = 0;
+
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        audioAnalyser.getByteFrequencyData(dataArray);
+
+        if (colors.current.length == 0) {
+            for (let i = 0; i < bufferLength; i++) {
+                var randomColor = Math.floor(Math.random()*16777215).toString(16)
+                colors.current.push(randomColor)
+            }
+        }
+
+        for (let i = 0; i < bufferLength; i++) {
+            let barHeight = parseInt(dataArray[i] / 2);
+
+            canvasCtx.fillStyle = "#" + colors.current[i];
+            canvasCtx.fRect(x, canvas.height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+        }
     
+        requestAnimationFrame(animate);
+    }
+
+    useEffect(() => {
+        if (audioAnalyser !== null) {
+            resizeCanvas()
+            requestAnimationFrame(animate);
+        }
+    }, [audioAnalyser])
+
+
     return (
         (<Container fluid={true}>
             <Row id="utilityControl">
@@ -343,21 +452,17 @@ export default function Playlist() {
                 </Row>
             </Row>
             
-            <Row>
-                <Col>
-                <canvas id="visualizerCanvas">{animate()}</canvas>
-
-                    {/* <MusicAnalyzer audioSource={audioSource}/> */}
-                </Col>
-                <Col>
-                    {formatVideos()}
-                </Col>
+            <Row id="videosContainer">
+                {formatVideos()}
             </Row>
             <Row>
                 {currPage == 0 ? "" : <Col><button onClick={() => setCurrPage(currPage - 1)}>Prev</button></Col>}
                 {(currPage + 1) * 50 >= videos.length && nextPageToken === undefined ? "" : <Col><button id="nextButton" onClick={() => setCurrPage(currPage + 1)}>Next</button></Col>}
             </Row>
-            
+
+            <Row id="visualizerContainer">
+                <canvas id="visualizerCanvas"></canvas>
+            </Row>
         </Container>)
     )
 }
