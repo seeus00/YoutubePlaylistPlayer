@@ -4,3 +4,11 @@ input[type=text] {
 .container {
     text-align: center;
 }
+
+h1, label {
+    color: white;
+}
+
+label {
+    margin-right: 20px;
+}

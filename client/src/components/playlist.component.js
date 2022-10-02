@@ -70,7 +70,7 @@ export default function Playlist() {
 
     useEffect(() => {
         setVideos([])
-        //fetchVideos("")
+        fetchVideos("")
     }, [currPlaylistUrl])
 
     useEffect(() => {
@@ -281,10 +281,9 @@ export default function Playlist() {
 
         return videos.slice(currPage * 50, (currPage + 1) * 50).map(video => 
             <div key={video.id}>
-                <Row className="videoEntry">
+                <Row className="videoEntry" onClick={() => handleVideoClick(video)}>
                     <Col>
-                        <div className="videoInPlaylist"
-                            onClick={() => handleVideoClick(video)}>
+                        <div className="videoInPlaylist">
                                 <p>
                                     {video.title}
                                 </p>
@@ -353,6 +352,12 @@ export default function Playlist() {
         let canvas = document.getElementById("visualizerCanvas")
         let canvasCtx = canvas.getContext("2d");
 
+        // canvas.style.width='100%';
+        // canvas.style.height='100%';
+        // canvas.width  = canvas.offsetWidth;
+        // canvas.height = canvas.offsetHeight;
+        //canvas.style.display = "block";
+
         canvasCtx.sRect = (x,y,w,h) => {
             x=parseInt(x)+0.50;
             y=parseInt(y)+0.50;
@@ -395,14 +400,14 @@ export default function Playlist() {
 
     useEffect(() => {
         if (audioAnalyser !== null) {
-            resizeCanvas()
+            //resizeCanvas()
             requestAnimationFrame(animate);
         }
     }, [audioAnalyser])
 
 
     return (
-        (<Container fluid={true}>
+        (<Container id="mainContainer" fluid={true}>
             <Row id="utilityControl">
                 <Col>
                     <button type="button" id="prevTrackButton" onClick={() => playPrevSong()}>⏮️</button>
@@ -452,16 +457,19 @@ export default function Playlist() {
                 </Row>
             </Row>
             
-            <Row id="videosContainer">
-                {formatVideos()}
+            <Row id="content">
+                <Col id="visualizerContainer" xs={7}>
+                    <canvas id="visualizerCanvas"></canvas>
+                    
+                </Col>
+                <Col id="videosContainer">
+                    {formatVideos()}
+                </Col>
+                
             </Row>
             <Row>
                 {currPage == 0 ? "" : <Col><button onClick={() => setCurrPage(currPage - 1)}>Prev</button></Col>}
                 {(currPage + 1) * 50 >= videos.length && nextPageToken === undefined ? "" : <Col><button id="nextButton" onClick={() => setCurrPage(currPage + 1)}>Next</button></Col>}
-            </Row>
-
-            <Row id="visualizerContainer">
-                <canvas id="visualizerCanvas"></canvas>
             </Row>
         </Container>)
     )
